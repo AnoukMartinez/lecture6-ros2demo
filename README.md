@@ -1,5 +1,7 @@
 Link for the forked repository - https://github.com/AnoukMartinez/lecture6-ros2demo
+
 Student ID - 25-209-974
+
 ROS2 Version - Humble
 
 # Lecture 6: ROS 2 Concepts & Building Software Packages
@@ -985,7 +987,7 @@ colcon build --symlink-install
 
 This somehow did fix things, and now everything runs as it should. I did rerun both nodes in seperate terminals, as shown below.
 
-![Both Nodes](./assets/both_nodes.gif)
+![Both Nodes](./assets/both_nodes.png)
 
 Showing both nodes in the node list also doesn't cause issues and shows the expected output.
 
@@ -1008,3 +1010,147 @@ root@aec857b6e15b:/workspace/turtlebot3_ws# ros2 node list
 The publisher and subscriber dont know each other directly, and only communicate via their respective topics. The robot in this case acts as a gateway of sorts. Our publisher communicated via the topic /cmd_vel, where it publishes the move commands to the robot, while the subscriber listens to the /odom topic where the robot publishes the location infos.
 
 ## Task 2: ROS2 Topic Inspection & Message Frequency Analysis
+### a) CLI Topic Commands
+- Active Topic List:
+    ```
+    root@aec857b6e15b:/workspace/turtlebot3_ws# ros2 topic list
+    /clock
+    /cmd_vel
+    /imu
+    /joint_states
+    /odom
+    /parameter_events
+    /performance_metrics
+    /robot_description
+    /rosout
+    /scan
+    /tf
+    /tf_static
+    ```
+- Topic Info Velocity Publisher:
+    ```
+    root@aec857b6e15b:/workspace/turtlebot3_ws# ros2 topic info /cmd_vel
+    Type: geometry_msgs/msg/Twist
+    Publisher count: 1
+    Subscription count: 1
+    ```
+- Topic Info Odom Subscriber:
+    ```
+    root@aec857b6e15b:/workspace/turtlebot3_ws# ros2 topic info /odom
+    Type: nav_msgs/msg/Odometry
+    Publisher count: 1
+    Subscription count: 1
+    ```
+- Odom Topic Frequency (5 ticks):
+    ```
+    root@aec857b6e15b:/workspace/turtlebot3_ws# ros2 topic hz /odom
+    average rate: 29.353
+            min: 0.029s max: 0.041s std dev: 0.00254s window: 31
+    average rate: 29.376
+            min: 0.029s max: 0.041s std dev: 0.00216s window: 61
+    average rate: 29.337
+            min: 0.029s max: 0.041s std dev: 0.00212s window: 91
+    average rate: 29.305
+            min: 0.028s max: 0.046s std dev: 0.00249s window: 121
+    average rate: 29.284
+            min: 0.028s max: 0.046s std dev: 0.00242s window: 151
+    ```
+- Odom Subscription (5 ticks):
+    ```
+    root@aec857b6e15b:/workspace/turtlebot3_ws# ros2 topic bw /odom
+    Subscribed to [/odom]
+    21.91 KB/s from 30 messages
+            Message size mean: 0.72 KB min: 0.72 KB max: 0.72 KB
+    21.42 KB/s from 59 messages
+            Message size mean: 0.72 KB min: 0.72 KB max: 0.72 KB
+    21.30 KB/s from 88 messages
+            Message size mean: 0.72 KB min: 0.72 KB max: 0.72 KB
+    21.44 KB/s from 100 messages
+            Message size mean: 0.72 KB min: 0.72 KB max: 0.72 KB
+    21.32 KB/s from 100 messages
+            Message size mean: 0.72 KB min: 0.72 KB max: 0.72 KB
+    ```
+- Node List:
+    ```
+    root@aec857b6e15b:/workspace/turtlebot3_ws# ros2 node list
+    /circle_motion
+    /gazebo
+    /odometry_subscriber
+    /robot_state_publisher
+    /turtlebot3_diff_drive
+    /turtlebot3_imu
+    /turtlebot3_joint_state
+    /turtlebot3_laserscan
+    ```
+- Node Info for circle motion:
+    ```
+    root@aec857b6e15b:/workspace/turtlebot3_ws# ros2 node info /circle_motion
+    /circle_motion
+    Subscribers:
+
+    Publishers:
+        /cmd_vel: geometry_msgs/msg/Twist
+        /parameter_events: rcl_interfaces/msg/ParameterEvent
+        /rosout: rcl_interfaces/msg/Log
+    Service Servers:
+        /circle_motion/describe_parameters: rcl_interfaces/srv/DescribeParameters
+        /circle_motion/get_parameter_types: rcl_interfaces/srv/GetParameterTypes
+        /circle_motion/get_parameters: rcl_interfaces/srv/GetParameters
+        /circle_motion/list_parameters: rcl_interfaces/srv/ListParameters
+        /circle_motion/set_parameters: rcl_interfaces/srv/SetParameters
+        /circle_motion/set_parameters_atomically: rcl_interfaces/srv/SetParametersAtomically
+    Service Clients:
+
+    Action Servers:
+
+    Action Clients:
+    ```
+
+---
+- *What is /odom frequency? Why does frequency matter for robot control?*
+    
+    The frequency for the nodes show how often the node gets updated data from the robot, in this case the odom node gets the position data. We need higher or lower frequencies of data depending on the usecase, but in the position data it could matter to receive a higher frequency of data to keep a smooth track of the robot position.
+
+- *How many publishers and subscribers does /cmd_vel have when your nodes are
+running? List them.*
+    
+    As we saw running the `ros2 topic info /cmd_vel` command, we have Publisher count: 1 and Subscription count: 1. The circle_motion node is the publisher in this case, and the robot itself is the subscriber that will execute the move commands. This is both unrelated to the odom node and position data.
+
+- *What’s the difference between ros2 topic hz and ros2 topic bw?*
+
+    [Hz](https://docs.ros.org/en/humble/Tutorials/Beginner-CLI-Tools/Understanding-ROS2-Topics/Understanding-ROS2-Topics.html#ros2-topic-hz) measures the message frequency, as in whats the message rate on this topic per second (e.g average rate: 29.353). [Bw](https://docs.ros.org/en/humble/Tutorials/Beginner-CLI-Tools/Understanding-ROS2-Topics/Understanding-ROS2-Topics.html#ros2-topic-bw) measures the bandwidth, giving some more detailed information on the bytes/second for the topic (e.g 21.91 KB/s from 30 messages).
+
+### b) Visualizing Communication Graph
+
+![Node Graph](./assets/graph.png)
+
+*What does the graph show? How are nodes connected?*
+
+The graph shows the running nodes and how they are linked to each other. As explained, the circle motion node publishes on the topic cmd_vel, shown on the arrow from the /circle_motion node to the /turtlebot3_diff_drive here. The info from the robot is then again published on the topic /odom, which is recieved by the /odometry_subscriber (There also seem to be some other running nodes, that are not directly related to what we programmed in task 1).
+
+*What happens if you stop the circle_motion node?*
+
+As explained before, the publisher and subscribers are completely independent from one another, and publishers/subscribers can join and leave a topic seamlessly anytime.
+Hence, the robot would still be subscribed to the cmd_vel topic, there is just no new info being published on it since we remove the publisher node. We can also quickly try this in practice.
+
+```
+root@aec857b6e15b:/workspace/turtlebot3_ws/src# ros2 topic info /cmd_vel
+Type: geometry_msgs/msg/Twist
+Publisher count: 0 <-- No more publishers on cmd_vel, since circle_motion node is gone
+Subscription count: 1
+
+root@aec857b6e15b:/workspace/turtlebot3_ws/src# ros2 node list
+/gazebo
+/odometry_subscriber <-- circle_motion is gone...!
+/robot_state_publisher
+/rqt_gui_py_node_86247
+/turtlebot3_diff_drive
+/turtlebot3_imu
+/turtlebot3_joint_state
+/turtlebot3_laserscan
+root@aec857b6e15b:/workspace/turtlebot3_ws/src# 
+```
+
+![Node Graph](./assets/graph_after.png)
+
+As expected, the turtlebot still can publish (now) static data to the odometry subscriber.
