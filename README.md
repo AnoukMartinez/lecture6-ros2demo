@@ -900,7 +900,7 @@ student_robotics
 
 As seen above, I also already created the circle_motion file inside the student_robotics subfolder. For the code itself, I oriented myself on what was given in this readme, as well as in the tutorial provided on the worksheet (Adapting the necessary values of course, for example 0.2 -> 0.3 linear m/s).
 
-```
+```py
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist 
@@ -945,7 +945,7 @@ If we only ran our main function once, we would also only execute the effect of 
 
 I leave the spinning node running for now while working on the second one, and open a new terminal. Once again, I orient myself partly on the code given in the Publisher/Subscriber Tutorial and on the code in the Readme.
 
-```
+```py
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
