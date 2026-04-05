@@ -1,3 +1,7 @@
+Link for the forked repository - https://github.com/AnoukMartinez/lecture6-ros2demo
+Student ID - 25-209-974
+ROS2 Version - Humble
+
 # Lecture 6: ROS 2 Concepts & Building Software Packages
 
 
@@ -866,3 +870,141 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Based on ROBOTIS TurtleBot3 packages
 - Uses osrf/ros Docker images
 - Built for DevOps for Cyber-Physical Systems course at University of Bern
+
+---
+
+# Task Documentation
+
+## Task 1: Create ROS2 Package & Publisher-Subscriber Nodes
+### a) Package Creation & Circle Motion Publisher
+Creating the package with the given command was no problem. I replaced the missing fields in the `package.xml` as instructed, and added the three dependencies (rclpy, geometry_msgs, nav_msgs).
+
+```
+root@aec857b6e15b:/workspace/turtlebot3_ws/src# tree student_robotics
+student_robotics
+├── package.xml
+├── resource
+│   └── student_robotics
+├── setup.cfg
+├── setup.py
+├── student_robotics
+│   ├── __init__.py
+│   └── circle_motion.py
+└── test
+    ├── test_copyright.py
+    ├── test_flake8.py
+    └── test_pep257.py
+```
+
+As seen above, I also already created the circle_motion file inside the student_robotics subfolder. For the code itself, I oriented myself on what was given in this readme, as well as in the tutorial provided on the worksheet (Adapting the necessary values of course, for example 0.2 -> 0.3 linear m/s).
+
+```
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import Twist 
+
+class CircleMotion(Node):
+    def __init__(self):
+        super().__init__('circle_motion')
+        self.publisher_ = self.create_publisher(Twist, '/cmd_vel', 10)
+        timer_period = 0.1
+        self.timer = self.create_timer(timer_period, self.timer_callback)
+        self.get_logger().info('Circle Motion Publihser started! Publishing to /cmd_vel')
+    
+    def timer_callback(self):
+        msg = Twist()
+        msg.linear.x = 0.3
+        msg.angular.z = 0.5
+        self.publisher_.publish(msg)
+        self.get_logger().info(
+            f'Publishing: linear.x={msg.linear.x}, angular.z={msg.angular.z}'
+        )
+
+def main(args=None):
+    rclpy.init(args=args)
+    circle_motion_publisher = CircleMotion()
+    rclpy.spin(circle_motion_publisher)
+    # circle_motion_publisher.destroy_node() # not in the readme for some reason...
+    rclpy.shutdown()
+```
+
+Finally I ran `ros2 run student_robotics circle_motion`, but instead of running the node, it returned an error like so. `Package 'student_robotics' not found`. Running the command from inside the /src folder yields the same result.
+I resolved this issue by rereading the readme and realizing I didn't run `source /workspace/turtlebot3_ws/install/setup.bash`. I make a mental note not to repeat this mistake in the future. The bot is now spinning.
+
+![Package Creation](./assets/spinning_bot.gif)
+
+---
+
+*Why use create_timer()?*
+
+If we only ran our main function once, we would also only execute the effect of the callback once. By putting the spinning effect into the timer callback, and calling it every timeframe the timer specifies, we can have our code run indefinitely.
+
+### b) Odometry Subscriber
+
+I leave the spinning node running for now while working on the second one, and open a new terminal. Once again, I orient myself partly on the code given in the Publisher/Subscriber Tutorial and on the code in the Readme.
+
+```
+import rclpy
+from rclpy.node import Node
+from nav_msgs.msg import Odometry
+
+class OdomMonitor(Node):
+    def __init__(self):
+        super().__init__('odometry_subscriber')
+        self.subscription = self.create_subscription(Odometry, '/odom', self.odometry_callback, 10)
+        self.get_logger().info('Odometry Subscriber started! Listening to /odom')
+    
+    def odometry_callback(self, msg):
+        x = msg.pose.pose.position.x
+        y = msg.pose.pose.position.y
+        
+        vx = msg.twist.twist.linear.x
+        vz = msg.twist.twist.angular.z
+        
+        self.get_logger().info(
+            f'Position: x={x:.2f}, y={y:.2f} | Velocity: vx={vx:.2f}, vz={vz:.2f}'
+        )
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = OdomMonitor()
+    rclpy.spin(node)
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+```
+
+To make the two nodes run simultaneously, I added the odom_monitor to the `setup.py` and ran `ros2 run student_robotics odom_monitor` in the new terminal. This resulted in a `No executable found` error, so I closed all my terminals and rebuild again using the commands given in the readme.
+
+```bash
+cd /workspace/turtlebot3_ws
+rm -rf build install log
+colcon build --symlink-install
+```
+
+This somehow did fix things, and now everything runs as it should. I did rerun both nodes in seperate terminals, as shown below.
+
+![Both Nodes](./assets/both_nodes.gif)
+
+Showing both nodes in the node list also doesn't cause issues and shows the expected output.
+
+```
+root@aec857b6e15b:/workspace/turtlebot3_ws# ros2 node list
+/circle_motion
+/gazebo
+/odometry_subscriber
+/robot_state_publisher
+/turtlebot3_diff_drive
+/turtlebot3_imu
+/turtlebot3_joint_state
+/turtlebot3_laserscan
+```
+
+---
+
+*How does pub-sub decoupling work?*
+
+The publisher and subscriber dont know each other directly, and only communicate via their respective topics. The robot in this case acts as a gateway of sorts. Our publisher communicated via the topic /cmd_vel, where it publishes the move commands to the robot, while the subscriber listens to the /odom topic where the robot publishes the location infos.
+
+## Task 2: ROS2 Topic Inspection & Message Frequency Analysis
